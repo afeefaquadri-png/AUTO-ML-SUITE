@@ -15,6 +15,7 @@ uploaded_file = st.file_uploader("Upload CSV or Excel file", type=['csv', 'xlsx'
 if uploaded_file:
     files = {'file': uploaded_file}
     response = requests.post(f"{API_BASE}/data/upload", files=files)
+
     if response.status_code == 200:
         data = response.json()
         st.success(data['message'])

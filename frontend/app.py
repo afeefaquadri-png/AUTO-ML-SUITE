@@ -24,11 +24,7 @@ if uploaded_file:
         st.session_state['data'] = data['preview']  # full data? Wait, preview only, need to store full.
         # Actually, for simplicity, store the df in session, but since API, perhaps upload and store on server, but for now, assume client side.
         # To make it work, perhaps load locally.
-        if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-        st.session_state['df'] = df
+        st.session_state['df'] = pd.DataFrame(data['data'])
     else:
         st.error("Upload failed")
 

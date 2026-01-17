@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import data_router, model_router
+from routers import data_router, model_router
 from modules.utils import setup_logging
 
 setup_logging()

@@ -15,19 +15,22 @@ uploaded_file = st.file_uploader("Upload CSV or Excel file", type=['csv', 'xlsx'
 if uploaded_file:
     files = {'file': uploaded_file}
     response = requests.post(f"{API_BASE}/data/upload", files=files)
+
     if response.status_code == 200:
         data = response.json()
         st.success(data['message'])
         st.write(f"Shape: {data['shape']}")
         st.dataframe(pd.DataFrame(data['preview']))
-        st.session_state['columns'] = data['columns']
-        st.session_state['data'] = data['preview']  # full data? Wait, preview only, need to store full.
-        # Actually, for simplicity, store the df in session, but since API, perhaps upload and store on server, but for now, assume client side.
-        # To make it work, perhaps load locally.
+
+        # 🔥 RESET POINTER HERE
+        uploaded_file.seek(0)
+
+        # Load locally for Streamlit session
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
+
         st.session_state['df'] = df
     else:
         st.error("Upload failed")

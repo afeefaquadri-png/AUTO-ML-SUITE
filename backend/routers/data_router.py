@@ -21,6 +21,9 @@ async def upload_file(file: UploadFile = File(...)):
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type")
         
+        if df.empty or len(df.columns) == 0:
+            raise HTTPException(status_code=400, detail="The uploaded file contains no data or columns.")
+        
         preview = df.head(5).to_dict('records')
         return UploadResponse(
             message="File uploaded successfully",

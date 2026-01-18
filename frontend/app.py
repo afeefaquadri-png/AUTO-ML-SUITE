@@ -18,9 +18,13 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
-    try:
-        files = {'file': uploaded_file}
-        response = requests.post(f"{API_BASE}/data/upload", files=files)
+    # Validate file is not empty before processing
+    if uploaded_file.size == 0:
+        st.error("The uploaded file is empty. Please select a valid file.")
+    else:
+        try:
+            files = {'file': uploaded_file}
+            response = requests.post(f"{API_BASE}/data/upload", files=files)
 
         if response.status_code == 200:
             data = response.json()

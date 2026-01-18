@@ -23,7 +23,7 @@ async def upload_file(file: UploadFile = File(...)):
         # Reset file pointer and parse based on extension
         try:
             if file.filename.endswith('.csv'):
-                df = pd.read_csv(io.BytesIO(contents), encoding='utf-8')
+                df = pd.read_csv(io.BytesIO(contents), encoding='utf-8', skip_blank_lines=True)
             elif file.filename.endswith(('.xlsx', '.xls')):
                 df = pd.read_excel(io.BytesIO(contents))
             else:
@@ -33,7 +33,7 @@ async def upload_file(file: UploadFile = File(...)):
         except UnicodeDecodeError:
             # Retry with different encoding
             try:
-                df = pd.read_csv(io.BytesIO(contents), encoding='latin-1')
+                df = pd.read_csv(io.BytesIO(contents), encoding='latin-1', skip_blank_lines=True)
             except Exception:
                 raise HTTPException(status_code=400, detail="Unable to read file. Check encoding and format.")
         

@@ -13,21 +13,23 @@ st.title("Auto ML Suite")
 st.header("1. Data Ingestion")
 uploaded_file = st.file_uploader("Upload CSV or Excel file", type=['csv', 'xlsx', 'xls'])
 if uploaded_file:
-    files = {'file': uploaded_file}
-    response = requests.post(f"{API_BASE}/data/upload", files=files)
+    try:
+        files = {'file': uploaded_file}
+        response = requests.post(f"{API_BASE}/data/upload", files=files)
 
-    if response.status_code == 200:
-        data = response.json()
-        st.success(data['message'])
-        st.write(f"Shape: {data['shape']}")
-        st.dataframe(pd.DataFrame(data['preview']))
-        st.session_state['columns'] = data['columns']
-        st.session_state['data'] = data['preview']  # full data? Wait, preview only, need to store full.
-        # Actually, for simplicity, store the df in session, but since API, perhaps upload and store on server, but for now, assume client side.
-        # To make it work, perhaps load locally.
-        st.session_state['df'] = pd.DataFrame(data['data'])
-    else:
-        st.error("Upload failed")
+        if response.status_code == 200:
+            data = response.json()
+            st.success(data['message'])
+            st.write(f"Shape: {data['shape']}")
+            st.dataframe(pd.DataFrame(data['preview']))
+            st.session_state['columns'] = data['columns']
+            st.session_state['data'] = data['preview']
+            st.session_state['df'] = pd.DataFrame(data['data'])
+        else:
+            error_msg = response.json().get('detail', 'Upload failed')
+            st.error(f"Upload failed: {error_msg}")
+    except Exception as e:
+        st.error(f"Error during file upload: {str(e)}")
 
 # DB load
 st.subheader("Or load from Database")

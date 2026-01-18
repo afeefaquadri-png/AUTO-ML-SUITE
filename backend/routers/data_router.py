@@ -13,14 +13,31 @@ router = APIRouter()
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(file: UploadFile = File(...)):
     try:
+        # Read file contents
         contents = await file.read()
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(contents))
-        elif file.filename.endswith(('.xlsx', '.xls')):
-            df = pd.read_excel(io.BytesIO(contents))
-        else:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
         
+        # Check if file is empty
+        if not contents:
+            raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+        
+        # Reset file pointer and parse based on extension
+        try:
+            if file.filename.endswith('.csv'):
+                df = pd.read_csv(io.BytesIO(contents), encoding='utf-8')
+            elif file.filename.endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(io.BytesIO(contents))
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported file type. Please upload CSV or Excel files.")
+        except pd.errors.EmptyDataError:
+            raise HTTPException(status_code=400, detail="The uploaded file is empty or contains no data.")
+        except UnicodeDecodeError:
+            # Retry with different encoding
+            try:
+                df = pd.read_csv(io.BytesIO(contents), encoding='latin-1')
+            except Exception:
+                raise HTTPException(status_code=400, detail="Unable to read file. Check encoding and format.")
+        
+        # Validate dataframe
         if df.empty or len(df.columns) == 0:
             raise HTTPException(status_code=400, detail="The uploaded file contains no data or columns.")
         
@@ -32,9 +49,11 @@ async def upload_file(file: UploadFile = File(...)):
             preview=preview,
             data=df.to_dict('records')
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Upload error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
 
 @router.post("/load_db", response_model=UploadResponse)
 def load_db(request: DBLoadRequest):

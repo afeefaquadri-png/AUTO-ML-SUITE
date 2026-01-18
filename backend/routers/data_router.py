@@ -4,11 +4,25 @@ from modules.data_ingestion import load_csv, load_excel, load_from_mongo, load_f
 from modules.data_preprocessing import select_features_target, handle_missing, encode_categorical, scale_numerical
 import pandas as pd
 import io
+import csv
 from modules.utils import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+def detect_delimiter(content_bytes, encoding='utf-8'):
+    """Detect the delimiter used in a CSV file"""
+    try:
+        text = content_bytes.decode(encoding)
+        first_lines = '\n'.join(text.split('\n')[:3])
+        sniffer = csv.Sniffer()
+        delimiter = sniffer.sniff(first_lines).delimiter
+        logger.info(f"Detected delimiter: {repr(delimiter)}")
+        return delimiter
+    except Exception as e:
+        logger.warning(f"Could not detect delimiter: {e}, using comma as default")
+        return ','
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(file: UploadFile = File(...)):
@@ -30,30 +44,50 @@ async def upload_file(file: UploadFile = File(...)):
         df = None
         try:
             if file.filename.endswith('.csv'):
-                # Try to read CSV with multiple encoding options and settings
-                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                # Try to read CSV with multiple encoding options and delimiter detection
+                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-16']
                 df = None
                 last_error = None
                 
                 for encoding in encodings:
                     try:
+                        logger.info(f"Attempting to parse CSV with encoding: {encoding}")
+                        
+                        # Detect delimiter
+                        delimiter = detect_delimiter(contents, encoding)
+                        
+                        # Read CSV with detected delimiter
                         df = pd.read_csv(
                             io.BytesIO(contents), 
                             encoding=encoding,
+                            sep=delimiter,
                             on_bad_lines='skip',
-                            engine='python'
+                            engine='python',
+                            skipinitialspace=True
                         )
+                        
                         if not df.empty and len(df.columns) > 0:
+                            logger.info(f"Successfully parsed CSV with {len(df.columns)} columns and {len(df)} rows")
                             break
+                    except UnicodeDecodeError:
+                        logger.warning(f"UnicodeDecodeError with encoding {encoding}")
+                        continue
                     except Exception as e:
+                        logger.warning(f"Error parsing CSV with encoding {encoding}: {e}")
                         last_error = e
                         continue
                 
                 if df is None or df.empty or len(df.columns) == 0:
-                    raise HTTPException(status_code=400, detail=f"Unable to parse CSV file with any encoding. Last error: {str(last_error)}")
+                    error_detail = f"Unable to parse CSV file. Last error: {str(last_error) if last_error else 'Unknown error'}"
+                    logger.error(error_detail)
+                    raise HTTPException(status_code=400, detail=error_detail)
                     
             elif file.filename.endswith(('.xlsx', '.xls')):
-                df = pd.read_excel(io.BytesIO(contents))
+                try:
+                    df = pd.read_excel(io.BytesIO(contents))
+                except Exception as e:
+                    logger.error(f"Error reading Excel file: {e}")
+                    raise HTTPException(status_code=400, detail=f"Unable to read Excel file: {str(e)}")
             else:
                 raise HTTPException(status_code=400, detail="Unsupported file type. Please upload CSV or Excel files.")
         except pd.errors.EmptyDataError as e:
@@ -65,8 +99,12 @@ async def upload_file(file: UploadFile = File(...)):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Unexpected parsing error for file {file.filename}: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+            logger.error(f"Unexpected parsing error for file {file.filename}: {type(e).__name__}: {e}")
+            raise HTTPException(status_code=400, detail=f"Failed to parse file: {type(e).__name__}: {str(e)}")
+        
+        # Final validation - ensure we have a dataframe
+        if df is None:
+            raise HTTPException(status_code=400, detail="Failed to parse file - no data was extracted.")
         
         # Validate dataframe
         if df.empty:

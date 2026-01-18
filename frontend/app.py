@@ -13,28 +13,35 @@ st.title("Auto ML Suite")
 st.header("1. Data Ingestion")
 
 uploaded_file = st.file_uploader(
-    "Upload CSV or Excel file", type=["csv", "xlsx", "xls"]
+    "Upload CSV or Excel file",
+    type=["csv", "xlsx", "xls"]
 )
 
-if uploaded_file is not None:
+if uploaded_file:
     files = {"file": uploaded_file}
 
-    with st.spinner("Uploading data..."):
-        response = requests.post(f"{API_BASE}/data/upload", files=files)
+    response = requests.post(f"{API_BASE}/data/upload", files=files)
 
     if response.status_code == 200:
         data = response.json()
 
         st.success(data["message"])
-        st.write(f"Shape: {tuple(data['shape'])}")
+        st.write(f"Shape: {data['shape']}")
         st.dataframe(pd.DataFrame(data["preview"]))
 
-        # Store metadata only
-        st.session_state["columns"] = data["columns"]
-        st.session_state["data_uploaded"] = True
+        # 🔑 CRITICAL FIX
+        uploaded_file.seek(0)
+
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+
+        st.session_state["df"] = df
+        st.session_state["columns"] = df.columns.tolist()
 
     else:
-        st.error(f"Upload failed: {response.text}")
+        st.error("Upload failed")
 
 
 # DB load

@@ -11,7 +11,12 @@ st.title("Auto ML Suite")
 
 # File upload
 st.header("1. Data Ingestion")
-uploaded_file = st.file_uploader("Upload CSV or Excel file", type=['csv', 'xlsx', 'xls'])
+
+uploaded_file = st.file_uploader(
+    "Upload CSV or Excel file",
+    type=["csv", "xlsx", "xls"]
+)
+
 if uploaded_file:
     try:
         files = {'file': uploaded_file}
@@ -30,6 +35,7 @@ if uploaded_file:
             st.error(f"Upload failed: {error_msg}")
     except Exception as e:
         st.error(f"Error during file upload: {str(e)}")
+
 
 # DB load
 st.subheader("Or load from Database")

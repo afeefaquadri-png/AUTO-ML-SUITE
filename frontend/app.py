@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
+import json
 
 API_BASE = "http://localhost:8000/api"
 
@@ -136,7 +137,7 @@ if 'model_filename' in st.session_state:
     pred_data = st.text_area("Enter prediction data as JSON list of dicts")
     if st.button("Predict"):
         try:
-            data = eval(pred_data)  # dangerous, but for demo
+            data = json.loads(pred_data)
             payload = {"model_filename": st.session_state['model_filename'], "data": data}
             response = requests.post(f"{API_BASE}/model/predict", json=payload)
             if response.status_code == 200:
@@ -144,5 +145,7 @@ if 'model_filename' in st.session_state:
                 st.write("Predictions:", preds)
             else:
                 st.error("Prediction failed")
-        except:
-            st.error("Invalid JSON")
+        except json.JSONDecodeError:
+            st.error("Invalid JSON format")
+        except Exception as e:
+            st.error(f"Error: {str(e)}")

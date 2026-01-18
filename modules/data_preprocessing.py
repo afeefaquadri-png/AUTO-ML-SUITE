@@ -8,6 +8,11 @@ from modules.utils import get_logger
 logger = get_logger(__name__)
 
 def select_features_target(df, features, target):
+    if target not in df.columns:
+        raise ValueError(f"Target column '{target}' not found in dataframe")
+    if not all(f in df.columns for f in features):
+        missing = [f for f in features if f not in df.columns]
+        raise ValueError(f"Feature columns not found in dataframe: {missing}")
     X = df[features]
     y = df[target]
     logger.info(f"Selected features: {features}, target: {target}")
@@ -35,7 +40,7 @@ def encode_categorical(X, encoding='onehot'):
         return X
     
     if encoding == 'onehot':
-        encoder = OneHotEncoder(sparse=False, drop='first')
+        encoder = OneHotEncoder(sparse_output=False, drop='first')
         encoded = encoder.fit_transform(X[cat_cols])
         encoded_df = pd.DataFrame(encoded, columns=encoder.get_feature_names_out(cat_cols))
         X = X.drop(cat_cols, axis=1)
@@ -56,6 +61,9 @@ def scale_numerical(X, scaler='standard'):
         sc = StandardScaler()
     elif scaler == 'minmax':
         sc = MinMaxScaler()
+    else:
+        logger.warning(f"Unknown scaler type '{scaler}', defaulting to standard")
+        sc = StandardScaler()
     
     X[num_cols] = sc.fit_transform(X[num_cols])
     logger.info(f"Scaled numerical columns with {scaler} scaler")

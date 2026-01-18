@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from backend.models import TrainRequest, TrainResponse, PredictRequest, PredictResponse
+from models import TrainRequest, TrainResponse, PredictRequest, PredictResponse
 from modules.model_training import train_and_select_best, save_model
 from modules.model_deployment import predict
 import pandas as pd

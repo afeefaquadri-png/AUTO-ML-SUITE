@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import data_router, model_router
-from .modules.utils import setup_logging
+from backend.routers import data_router, model_router
+from modules.utils import setup_logging
 import uvicorn
 
 # configure logging before app creation

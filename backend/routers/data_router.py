@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from backend.models import UploadResponse, DBLoadRequest, PreprocessRequest, PreprocessResponse
+from models import UploadResponse, DBLoadRequest, PreprocessRequest, PreprocessResponse
 from modules.data_ingestion import load_csv, load_excel, load_from_mongo, load_from_postgres
 from modules.data_preprocessing import select_features_target, handle_missing, encode_categorical, scale_numerical
 import pandas as pd

@@ -9,36 +9,65 @@ API_BASE = "http://localhost:8000/api"
 
 st.title("Auto ML Suite")
 
+# Initialize session state
+if 'upload_error' not in st.session_state:
+    st.session_state.upload_error = None
+if 'upload_success' not in st.session_state:
+    st.session_state.upload_success = None
+
 # File upload
 st.header("1. Data Ingestion")
 
+# Create a container for upload status
+upload_status = st.container()
+
 uploaded_file = st.file_uploader(
     "Upload CSV or Excel file",
-    type=["csv", "xlsx", "xls"]
+    type=["csv", "xlsx", "xls"],
+    key="file_uploader"
 )
 
 if uploaded_file:
+    # Reset previous status messages
+    st.session_state.upload_error = None
+    st.session_state.upload_success = None
+    
     # Validate file is not empty before processing
     if uploaded_file.size == 0:
-        st.error("The uploaded file is empty. Please select a valid file.")
+        st.session_state.upload_error = "The uploaded file is empty. Please select a valid file."
+    elif not any(uploaded_file.name.endswith(ext) for ext in ['.csv', '.xlsx', '.xls']):
+        st.session_state.upload_error = "Invalid file format. Please upload a CSV or Excel file."
     else:
-        try:
-            files = {'file': uploaded_file}
-            response = requests.post(f"{API_BASE}/data/upload", files=files)
+        with st.spinner("Uploading and processing file..."):
+            try:
+                files = {'file': uploaded_file}
+                response = requests.post(f"{API_BASE}/data/upload", files=files, timeout=30)
 
-        if response.status_code == 200:
-            data = response.json()
-            st.success(data['message'])
-            st.write(f"Shape: {data['shape']}")
-            st.dataframe(pd.DataFrame(data['preview']))
-            st.session_state['columns'] = data['columns']
-            st.session_state['data'] = data['preview']
-            st.session_state['df'] = pd.DataFrame(data['data'])
-        else:
-            error_msg = response.json().get('detail', 'Upload failed')
-            st.error(f"Upload failed: {error_msg}")
-    except Exception as e:
-        st.error(f"Error during file upload: {str(e)}")
+                if response.status_code == 200:
+                    data = response.json()
+                    st.session_state.upload_success = data['message']
+                    st.session_state['columns'] = data['columns']
+                    st.session_state['data'] = data['preview']
+                    st.session_state['df'] = pd.DataFrame(data['data'])
+                else:
+                    error_msg = response.json().get('detail', 'Upload failed')
+                    st.session_state.upload_error = error_msg
+            except requests.exceptions.Timeout:
+                st.session_state.upload_error = "File upload timed out. Please try with a smaller file."
+            except requests.exceptions.ConnectionError:
+                st.session_state.upload_error = "Cannot connect to the backend server. Please ensure the API is running at http://localhost:8000"
+            except Exception as e:
+                st.session_state.upload_error = f"Error during file upload: {str(e)}"
+
+# Display status messages using containers to avoid persistence
+with upload_status:
+    if st.session_state.upload_error:
+        st.error(st.session_state.upload_error)
+    elif st.session_state.upload_success:
+        st.success(st.session_state.upload_success)
+        if 'df' in st.session_state:
+            st.write(f"Shape: {st.session_state['df'].shape}")
+            st.dataframe(pd.DataFrame(st.session_state.get('data', [])))
 
 
 # DB load
